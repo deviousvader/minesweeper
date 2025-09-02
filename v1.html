@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minesweeper</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    margin-top: 20px;
+  }
+  #game {
+    display: inline-block;
+    margin-top: 20px;
+  }
+  .row {
+    display: flex;
+  }
+  .cell {
+    width: 25px;
+    height: 25px;
+    border: 1px solid #555;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+    user-select: none;
+  }
+  .cell.revealed {
+    background-color: #ddd;
+    cursor: default;
+  }
+  .cell.bomb {
+    background-color: red;
+  }
+  .cell.flagged {
+    background-color: yellow;
+  }
+</style>
+</head>
+<body>
+
+<h1>Minesweeper</h1>
+
+<label for="gridSize">Grid Size: </label>
+<select id="gridSize">
+  <option value="8">8x8</option>
+  <option value="16">16x16</option>
+  <option value="32">32x32</option>
+</select>
+<button onclick="startGame()">Start Game</button>
+
+<div id="game"></div>
+
+<script>
+let rows = 8;
+let cols = 8;
+let bombsCount = 10;
+let grid = [];
+let flagMode = false;
+
+function startGame() {
+  const sizeSelect = document.getElementById('gridSize');
+  const size = parseInt(sizeSelect.value);
+  rows = cols = size;
+  bombsCount = Math.floor(size * size * 0.15); // ~15% of cells are bombs
+
+  grid = [];
+  const game = document.getElementById('game');
+  game.innerHTML = '';
+
+  for (let r = 0; r < rows; r++) {
+    grid[r] = [];
+    const rowDiv = document.createElement('div');
+    rowDiv.classList.add('row');
+    for (let c = 0; c < cols; c++) {
+      const cell = {
+        row: r,
+        col: c,
+        bomb: false,
+        revealed: false,
+        flagged: false,
+        adjacent: 0,
+        element: document.createElement('div')
+      };
+      cell.element.classList.add('cell');
+      cell.element.addEventListener('click', () => handleCellClick(r, c));
+      rowDiv.appendChild(cell.element);
+      grid[r][c] = cell;
+    }
+    game.appendChild(rowDiv);
+  }
+
+  // Place bombs
+  let bombsPlaced = 0;
+  while (bombsPlaced < bombsCount) {
+    const r = Math.floor(Math.random() * rows);
+    const c = Math.floor(Math.random() * cols);
+    if (!grid[r][c].bomb) {
+      grid[r][c].bomb = true;
+      bombsPlaced++;
+    }
+  }
+
+  // Calculate adjacent bomb counts
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      grid[r][c].adjacent = countAdjacentBombs(r, c);
+    }
+  }
+}
+
+function countAdjacentBombs(r, c) {
+  let count = 0;
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      const nr = r + dr;
+      const nc = c + dc;
+      if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr][nc].bomb) {
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
+function handleCellClick(r, c) {
+  const cell = grid[r][c];
+  if (cell.revealed) return;
+
+  if (flagMode) {
+    cell.flagged = !cell.flagged;
+    cell.element.classList.toggle('flagged', cell.flagged);
+    cell.element.textContent = cell.flagged ? '🚩' : '';
+    return;
+  }
+
+  revealCell(r, c);
+}
+
+function revealCell(r, c) {
+  const cell = grid[r][c];
+  if (cell.revealed || cell.flagged) return;
+
+  cell.revealed = true;
+  cell.element.classList.add('revealed');
+
+  if (cell.bomb) {
+    cell.element.classList.add('bomb');
+    cell.element.textContent = '💣';
+    alert('Game Over!');
+    revealAll();
+    return;
+  }
+
+  if (cell.adjacent > 0) {
+    cell.element.textContent = cell.adjacent;
+  } else {
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        const nr = r + dr;
+        const nc = c + dc;
+        if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+          revealCell(nr, nc);
+        }
+      }
+    }
+  }
+}
+
+function revealAll() {
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const cell = grid[r][c];
+      if (!cell.revealed) revealCell(r, c);
+    }
+  }
+}
+
+// Toggle flag mode with E key
+document.addEventListener('keydown', (e) => {
+  if (e.key.toLowerCase() === 'e') {
+    flagMode = !flagMode;
+    document.body.style.cursor = flagMode ? 'crosshair' : 'default';
+  }
+});
+
+startGame();
+</script>
+
+</body>
+</html>
